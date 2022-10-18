@@ -29,12 +29,10 @@ public class FruitResource {
 
     void initdb(@Observes StartupEvent ev) {
         if (schemaCreate) {
-            client.query("DROP TABLE IF EXISTS fruits").execute()
-              .flatMap(r -> client.query("CREATE TABLE fruits (id SERIAL PRIMARY KEY, name TEXT NOT NULL)")
-                .execute())
-              .flatMap(r -> client.query("INSERT INTO fruits (name) VALUES ('Orange')").execute())
-              .flatMap(r -> client.query("INSERT INTO fruits (name) VALUES ('Pear')").execute())
-              .flatMap(r -> client.query("INSERT INTO fruits (name) VALUES ('Apple')").execute())
+            client.query("CREATE TABLE IF NOT EXISTS fruit(id varchar(100) PRIMARY KEY , name varchar(100), quantity varchar(11) null, description varchar(200) null)").execute()
+              .flatMap(r -> client.query("INSERT INTO fruit(id, name) VALUES ('1', 'Cherry')").execute())
+              .flatMap(r -> client.query("INSERT INTO fruit(id, name) VALUES ('2', 'Apple')").execute())
+              .flatMap(r -> client.query("INSERT INTO fruit(id, name) VALUES ('3', 'Banana')").execute())
               .await().indefinitely();
         }
     }
@@ -48,7 +46,7 @@ public class FruitResource {
 
     @GET
     @Path("{id}")
-    public Uni<Response> getSingle(Long id) {
+    public Uni<Response> getSingle(String id) {
         return Fruit.findById(client, id)
           .onItem().transform(fruit -> fruit != null ? Response.ok(fruit) : Response.status(Status.NOT_FOUND))
           .onItem().transform(ResponseBuilder::build);
@@ -63,15 +61,15 @@ public class FruitResource {
 
     @PUT
     @Path("{id}")
-    public Uni<Response> update(Long id, Fruit fruit) {
-        return fruit.update(client)
+    public Uni<Response> update(String id, Fruit fruit) {
+        return fruit.update(client, id)
           .onItem().transform(updated -> updated ? Status.OK : Status.NOT_FOUND)
           .onItem().transform(status -> Response.status(status).build());
     }
 
     @DELETE
     @Path("{id}")
-    public Uni<Response> delete(Long id) {
+    public Uni<Response> delete(String id) {
         return Fruit.delete(client, id)
           .onItem().transform(deleted -> deleted ? Status.NO_CONTENT : Status.NOT_FOUND)
           .onItem().transform(status -> Response.status(status).build());
