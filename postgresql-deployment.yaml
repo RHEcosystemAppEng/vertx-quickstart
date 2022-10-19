@@ -1,0 +1,77 @@
+---
+# tag::db-secret[]
+apiVersion: v1
+kind: Secret
+metadata:
+  name: quarkus-reactive-postgresql
+stringData:
+  database: quarkus-reactive-postgresql-db
+  username: quarkus-reactive-postgresql-user
+  password: quarkus-reactive-postgresql-passwd
+# end::db-secret[]
+---
+# tag::db-deployment[]
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quarkus-reactive-postgresql
+  labels:
+    app: quarkus-reactive-postgresql
+  annotations:
+    # tag::db-annotations[]
+    service.binding/type: "postgresql"
+    service.binding/host: "path={.metadata.name}.{.metadata.namespace}"
+    service.binding/port: "path={.spec.template.spec.containers[0].ports[0].containerPort}"
+    service.binding: "path={.spec.template.spec.volumes[0].secret.secretName},objectType=Secret"
+    # end::db-annotations[]
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quarkus-reactive-postgresql
+  template:
+    metadata:
+      labels:
+        app: quarkus-reactive-postgresql
+    spec:
+      containers:
+        - name: postgresql
+          image: postgres:13
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_DB_FILE
+              value: /secrets/database
+            - name: POSTGRES_PASSWORD_FILE
+              value: /secrets/password
+            - name: POSTGRES_USER_FILE
+              value: /secrets/username
+            - name: PGDATA
+              value: /tmp/data
+          volumeMounts:
+            - name: quarkus-reactive-postgresql
+              mountPath: "/secrets"
+              readOnly: true
+          ports:
+            - name: postgresql
+              containerPort: 5432
+      volumes:
+        - name: quarkus-reactive-postgresql
+          secret:
+            secretName: quarkus-reactive-postgresql
+# end::db-deployment[]
+---
+# tag::db-service[]
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: quarkus-reactive-postgresql
+  name: quarkus-reactive-postgresql
+spec:
+  ports:
+    - port: 5432
+      protocol: TCP
+      targetPort: 5432
+  selector:
+    app: quarkus-reactive-postgresql
+# end::db-service[]
